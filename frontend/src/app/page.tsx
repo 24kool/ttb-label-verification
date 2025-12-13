@@ -1,0 +1,100 @@
+"use client";
+
+import { useState } from "react";
+import { ImageUpload } from "@/components/ImageUpload";
+import { LabelForm } from "@/components/LabelForm";
+import { VerificationResults } from "@/components/VerificationResults";
+import { verifyLabel } from "@/lib/api";
+import { FormData, LabelVerificationResponse } from "@/types";
+
+const INITIAL_FORM_DATA: FormData = {
+  brand: "",
+  type: "",
+  abv: "",
+  volume: "",
+};
+
+export default function Home() {
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<LabelVerificationResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!selectedImage) return;
+
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const response = await verifyLabel([selectedImage], formData);
+      setResult(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isFormValid =
+    selectedImage &&
+    formData.brand.trim() &&
+    formData.type.trim() &&
+    formData.abv.trim() &&
+    formData.volume.trim();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-2xl font-bold">TTB Label Verification</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload a label image and verify the information
+          </p>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        {/* Input Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Upload Label Image</h2>
+            <ImageUpload
+              onImageSelect={setSelectedImage}
+              selectedImage={selectedImage}
+            />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Enter Label Details</h2>
+            <LabelForm
+              formData={formData}
+              onFormChange={setFormData}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              disabled={!isFormValid}
+            />
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <p className="text-red-600 font-medium">Error</p>
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
+
+        {/* Results Section */}
+        {result && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Verification Results</h2>
+            <VerificationResults response={result} />
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
