@@ -1,15 +1,9 @@
 """FastAPI application entry point."""
 
-from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.api.routes import router
-
-
-# Static files directory
-STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
 def create_app() -> FastAPI:
@@ -32,13 +26,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # Ensure static directory exists
-    STATIC_DIR.mkdir(parents=True, exist_ok=True)
-    (STATIC_DIR / "annotated").mkdir(parents=True, exist_ok=True)
-
-    # Mount static files for serving annotated images
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # Include API routes
     app.include_router(router)

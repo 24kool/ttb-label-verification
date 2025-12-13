@@ -1,17 +1,12 @@
-"""Service for image annotation and file saving."""
+"""Service for image annotation and Base64 encoding."""
 
-import uuid
-from pathlib import Path
+import base64
 import io
 from PIL import Image, ImageDraw, ImageFont
 
 
-# Directory for annotated images (relative to backend folder)
-ANNOTATED_IMAGES_DIR = Path(__file__).parent.parent.parent / "static" / "annotated"
-
-
 class ImageService:
-    """Handles image annotation with bounding boxes and file saving."""
+    """Handles image annotation with bounding boxes and Base64 encoding."""
 
     # Colors for different fields (RGB)
     FIELD_COLORS = {
@@ -24,11 +19,6 @@ class ImageService:
     def __init__(self):
         """Initialize image service."""
         self._font = None
-        self._ensure_output_dir()
-
-    def _ensure_output_dir(self):
-        """Ensure output directory exists."""
-        ANNOTATED_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
     @property
     def font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -113,55 +103,24 @@ class ImageService:
         image.save(output, format="JPEG", quality=90)
         return output.getvalue()
 
-    def annotate_and_save(
+    def annotate_and_encode(
         self,
         image_bytes: bytes,
         bounding_boxes: dict,
     ) -> str:
         """
-        Draw bounding boxes and save to file.
+        Draw bounding boxes and return as Base64 encoded string.
 
         Args:
             image_bytes: Original image bytes
             bounding_boxes: Dict mapping field names to bbox dicts
 
         Returns:
-            URL path to the saved annotated image (e.g., "/static/annotated/uuid.jpg")
+            Base64 encoded annotated image (data URI format)
         """
-        self._ensure_output_dir()
-        
         # Draw bounding boxes
         annotated_bytes = self.draw_bounding_boxes(image_bytes, bounding_boxes)
         
-        # Generate unique filename
-        filename = f"{uuid.uuid4()}.jpg"
-        file_path = ANNOTATED_IMAGES_DIR / filename
-        
-        # Save to file
-        with open(file_path, "wb") as f:
-            f.write(annotated_bytes)
-        
-        # Return URL path
-        return f"/static/annotated/{filename}"
-
-    def delete_annotated_image(self, url_path: str) -> bool:
-        """
-        Delete an annotated image by its URL path.
-
-        Args:
-            url_path: URL path like "/static/annotated/uuid.jpg"
-
-        Returns:
-            True if deleted successfully, False otherwise
-        """
-        try:
-            # Extract filename from URL path
-            filename = Path(url_path).name
-            file_path = ANNOTATED_IMAGES_DIR / filename
-            
-            if file_path.exists():
-                file_path.unlink()
-                return True
-            return False
-        except Exception:
-            return False
+        # Convert to Base64
+        base64_data = base64.b64encode(annotated_bytes).decode("utf-8")
+        return f"data:image/jpeg;base64,{base64_data}"

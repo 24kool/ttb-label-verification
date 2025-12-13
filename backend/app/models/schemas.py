@@ -39,7 +39,7 @@ class ImageResult(BaseModel):
     ocr_raw_text: str = Field(description="Full OCR extracted text")
     extracted_data: ExtractedData = Field(description="Structured data extracted from OCR text")
     bounding_boxes: BoundingBoxes = Field(description="Bounding boxes for each field")
-    annotated_image_url: str = Field(description="URL path to annotated image")
+    annotated_image_base64: str = Field(description="Base64 encoded annotated image")
 
 
 class FieldComparison(BaseModel):

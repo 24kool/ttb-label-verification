@@ -170,10 +170,10 @@ async def verify_label(
                 volume=BoundingBox(**bboxes["volume"]) if bboxes.get("volume") else None,
             )
 
-            # Annotate image with bounding boxes and save to static folder
+            # Annotate image with bounding boxes and encode as Base64
             with open(temp_path, "rb") as f:
                 image_bytes_for_annotation = f.read()
-            annotated_image_url = image_service.annotate_and_save(
+            annotated_image_base64 = image_service.annotate_and_encode(
                 image_bytes_for_annotation, bboxes
             )
 
@@ -184,7 +184,7 @@ async def verify_label(
                 ocr_raw_text=ocr_text,
                 extracted_data=ExtractedData(**extracted),
                 bounding_boxes=bbox_objects,
-                annotated_image_url=annotated_image_url,
+                annotated_image_base64=annotated_image_base64,
             )
             results.append(result)
 
