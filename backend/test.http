@@ -146,3 +146,42 @@ Content-Type: image/jpeg
 --FormBoundary--
 
 ###
+
+
+### ===========================================
+### Vision Mode (Skip OCR, use Gemini Vision directly)
+### ===========================================
+
+### Vision Mode Test: Extract info directly from image
+# use_vision = true -> Skip OCR, use Gemini Vision model
+POST {{baseUrl}}/api/verify-label
+Content-Type: multipart/form-data; boundary=FormBoundary
+
+--FormBoundary
+Content-Disposition: form-data; name="brand"
+
+Jack Daniel's
+--FormBoundary
+Content-Disposition: form-data; name="type"
+
+Tennessee Sour Mash Whiskey
+--FormBoundary
+Content-Disposition: form-data; name="abv"
+
+40%
+--FormBoundary
+Content-Disposition: form-data; name="volume"
+
+70cl
+--FormBoundary
+Content-Disposition: form-data; name="use_vision"
+
+true
+--FormBoundary
+Content-Disposition: form-data; name="images"; filename="test_label.jpg"
+Content-Type: image/jpeg
+
+< ../data/test_label.jpg
+--FormBoundary--
+
+###

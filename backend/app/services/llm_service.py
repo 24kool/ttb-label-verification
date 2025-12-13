@@ -2,6 +2,8 @@
 
 import json
 import logging
+import base64
+from pathlib import Path
 import google.generativeai as genai
 from app.config import get_settings
 
@@ -25,17 +27,135 @@ class LLMService:
             logger.info("Gemini API configured successfully")
         
         self._model = None
+        self._vision_model = None
 
     @property
     def model(self):
-        """Lazy initialization of Gemini model."""
+        """Lazy initialization of Gemini text model."""
         if self._model is None:
             self._model = genai.GenerativeModel("gemini-2.5-flash")
-
+            logger.info("Using Gemini model: gemini-2.5-flash")
         return self._model
 
-    def parse_label_text(self, ocr_text: str) -> dict:
+    @property
+    def vision_model(self):
+        """Lazy initialization of Gemini vision model."""
+        if self._vision_model is None:
+            self._vision_model = genai.GenerativeModel("gemini-2.5-flash")
+            logger.info("Using Gemini vision model: gemini-2.5-flash")
+        return self._vision_model
 
+    def extract_from_image(self, image_path: str) -> dict:
+        """
+        Extract label information directly from image using vision model.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dict with brand, type, abv, volume fields
+        """
+        # Check if API key is configured
+        if not self._api_key or self._api_key == "your_gemini_api_key_here":
+            logger.error("Cannot extract from image: GEMINI_API_KEY not configured")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": "GEMINI_API_KEY not configured",
+            }
+
+        prompt = """You are a label information extractor for alcohol beverage labels.
+Look at this label image and extract the following information:
+
+1. brand - The brand/distillery name (e.g., "Jack Daniel's", "Johnnie Walker")
+2. type - The type of alcohol (e.g., "Tennessee Whiskey", "Single Malt Scotch Whisky")
+3. abv - Alcohol by volume percentage (e.g., "40%", "43% ABV")
+4. volume - The bottle volume (e.g., "750mL", "70cl", "1L")
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+    "brand": "extracted brand or null if not found",
+    "type": "extracted type or null if not found",
+    "abv": "extracted abv or null if not found",
+    "volume": "extracted volume or null if not found"
+}
+
+If a field cannot be found in the image, use null.
+Do not include any explanation, just the JSON object."""
+
+        try:
+            # Read and encode image
+            image_path = Path(image_path)
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            
+            # Determine MIME type
+            suffix = image_path.suffix.lower()
+            mime_type = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }.get(suffix, "image/jpeg")
+            
+            # Create image part for Gemini
+            image_part = {
+                "mime_type": mime_type,
+                "data": image_data
+            }
+            
+            logger.info(f"Sending image to Gemini vision model: {image_path.name}")
+            response = self.vision_model.generate_content([prompt, image_part])
+            response_text = response.text.strip()
+            logger.info(f"Gemini vision response: {response_text}")
+
+            # Remove markdown code blocks if present
+            if response_text.startswith("```"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:-1])
+
+            result = json.loads(response_text)
+            parsed = {
+                "brand": result.get("brand"),
+                "type": result.get("type"),
+                "abv": result.get("abv"),
+                "volume": result.get("volume"),
+            }
+            logger.info(f"Vision extracted result: {parsed}")
+            return parsed
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}, response was: {response_text}")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": f"JSON decode error: {e}",
+            }
+        except Exception as e:
+            logger.error(f"Error calling Gemini Vision API: {e}")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": str(e),
+            }
+
+    def parse_label_text(self, ocr_text: str) -> dict:
+        """
+        Parse OCR text to extract structured label information.
+
+        Args:
+            ocr_text: Raw text extracted from label image
+
+        Returns:
+            Dict with brand, type, abv, volume fields
+        """
         prompt = f"""You are a label information extractor for alcohol beverage labels.
 Extract the following information from the OCR text of a label image.
 
@@ -68,7 +188,6 @@ Do not include any explanation, just the JSON object."""
             # Remove markdown code blocks if present
             if response_text.startswith("```"):
                 lines = response_text.split("\n")
-                # Remove first line (```json) and last line (```)
                 response_text = "\n".join(lines[1:-1])
 
             result = json.loads(response_text)

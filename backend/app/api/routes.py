@@ -85,18 +85,20 @@ async def verify_label(
     type: str = Form(..., description="Product type from form"),
     abv: str = Form(..., description="ABV from form"),
     volume: str = Form(..., description="Volume from form"),
+    use_vision: bool = Form(default=False, description="Use vision model instead of OCR"),
 ) -> LabelVerificationResponse:
     """
     Verify label images against form data.
 
     This endpoint:
     1. Saves uploaded images to temporary files
-    2. Extracts text from images using PaddleOCR
-    3. Parses extracted text using Gemini LLM to identify brand, type, ABV, volume
-    4. Normalizes values for comparison (handles unit conversions)
-    5. Compares form data with extracted label data
-    6. Returns annotated images with bounding boxes and comparison results
-    7. Deletes temporary files after processing
+    2. Extracts info using either:
+       - OCR + LLM (default): PaddleOCR extracts text, then Gemini parses it
+       - Vision mode (use_vision=true): Gemini vision model reads image directly
+    3. Normalizes values for comparison (handles unit conversions)
+    4. Compares form data with extracted label data
+    5. Returns annotated images with bounding boxes and comparison results
+    6. Deletes temporary files after processing
     """
     if not images:
         raise HTTPException(status_code=400, detail="At least one image is required")
@@ -131,19 +133,25 @@ async def verify_label(
             )
             temp_files.append(temp_path)
 
-            # Extract text with OCR (using file path)
-            ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+            ocr_text = ""
+            ocr_results = []
+            bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
 
-            # Parse text with LLM
-            extracted = llm_service.parse_label_text(ocr_text)
+            if use_vision:
+                # Vision mode: Use Gemini vision model directly
+                extracted = llm_service.extract_from_image(str(temp_path))
+                ocr_text = "(Vision mode - no OCR text)"
+            else:
+                # OCR mode: Extract text with OCR, then parse with LLM
+                ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+                extracted = llm_service.parse_label_text(ocr_text)
+                # Find bounding boxes for extracted fields
+                bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
 
             # Update aggregated data (use first non-null value found)
             for field in ["brand", "type", "abv", "volume"]:
                 if aggregated_extracted_data[field] is None and extracted.get(field):
                     aggregated_extracted_data[field] = extracted[field]
-
-            # Find bounding boxes for extracted fields
-            bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
 
             # Create BoundingBoxes object
             bbox_objects = BoundingBoxes(
