@@ -4,6 +4,7 @@ import os
 import uuid
 import tempfile
 from pathlib import Path
+from PIL import Image
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from app.models.schemas import (
     LabelVerificationResponse,
@@ -138,9 +139,17 @@ async def verify_label(
             bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
 
             if use_vision:
-                # Vision mode: Use Gemini vision model directly
-                extracted = llm_service.extract_from_image(str(temp_path))
-                ocr_text = "(Vision mode - no OCR text)"
+                # Hybrid mode: Vision for extraction + OCR for bounding boxes
+                # Step 1: Run OCR to get text positions
+                ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+                
+                # Step 2: Use Vision model for more accurate text extraction
+                extracted = llm_service.extract_from_image_simple(str(temp_path))
+                
+                # Step 3: Use OCR results to find bounding boxes for extracted values
+                bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
+                
+                ocr_text = f"(Hybrid mode) OCR: {ocr_text}"
             else:
                 # OCR mode: Extract text with OCR, then parse with LLM
                 ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))

@@ -45,9 +45,10 @@ class LLMService:
             logger.info("Using Gemini vision model: gemini-2.5-flash")
         return self._vision_model
 
-    def extract_from_image(self, image_path: str) -> dict:
+    def extract_from_image_simple(self, image_path: str) -> dict:
         """
         Extract label information directly from image using vision model.
+        Simple version without bounding boxes - for hybrid mode.
         
         Args:
             image_path: Path to the image file
@@ -87,12 +88,12 @@ Do not include any explanation, just the JSON object."""
 
         try:
             # Read and encode image
-            image_path = Path(image_path)
-            with open(image_path, "rb") as f:
+            image_path_obj = Path(image_path)
+            with open(image_path_obj, "rb") as f:
                 image_data = f.read()
             
             # Determine MIME type
-            suffix = image_path.suffix.lower()
+            suffix = image_path_obj.suffix.lower()
             mime_type = {
                 ".jpg": "image/jpeg",
                 ".jpeg": "image/jpeg",
@@ -107,7 +108,7 @@ Do not include any explanation, just the JSON object."""
                 "data": image_data
             }
             
-            logger.info(f"Sending image to Gemini vision model: {image_path.name}")
+            logger.info(f"Sending image to Gemini vision model (simple): {image_path_obj.name}")
             response = self.vision_model.generate_content([prompt, image_part])
             response_text = response.text.strip()
             logger.info(f"Gemini vision response: {response_text}")
@@ -145,6 +146,158 @@ Do not include any explanation, just the JSON object."""
                 "volume": None,
                 "error": str(e),
             }
+
+    def extract_from_image(self, image_path: str, image_width: int = 0, image_height: int = 0) -> tuple[dict, dict]:
+        """
+        Extract label information directly from image using vision model.
+        Also attempts to get bounding box coordinates for each field.
+        
+        Args:
+            image_path: Path to the image file
+            image_width: Width of the image in pixels (for coordinate scaling)
+            image_height: Height of the image in pixels (for coordinate scaling)
+            
+        Returns:
+            Tuple of (extracted_data, bounding_boxes)
+            - extracted_data: Dict with brand, type, abv, volume fields
+            - bounding_boxes: Dict with bounding box for each field
+        """
+        empty_bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
+        
+        # Check if API key is configured
+        if not self._api_key or self._api_key == "your_gemini_api_key_here":
+            logger.error("Cannot extract from image: GEMINI_API_KEY not configured")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": "GEMINI_API_KEY not configured",
+            }, empty_bboxes
+
+        prompt = f"""You are a label information extractor for alcohol beverage labels.
+Look at this label image and extract the following information WITH their approximate bounding box locations.
+
+The image dimensions are: {image_width}x{image_height} pixels.
+
+For each field, provide:
+1. The extracted text value
+2. The bounding box coordinates (x, y, width, height) in pixels where:
+   - x: left edge of the text
+   - y: top edge of the text  
+   - width: width of the text area
+   - height: height of the text area
+
+Extract these fields:
+1. brand - The brand/distillery name (e.g., "Jack Daniel's", "Johnnie Walker")
+2. type - The type of alcohol (e.g., "Tennessee Whiskey", "Single Malt Scotch Whisky")
+3. abv - Alcohol by volume percentage (e.g., "40%", "43% ABV")
+4. volume - The bottle volume (e.g., "750mL", "70cl", "1L")
+
+Respond ONLY with a valid JSON object in this exact format:
+{{
+    "brand": "extracted brand or null if not found",
+    "brand_bbox": {{"x": 0, "y": 0, "width": 0, "height": 0}} or null,
+    "type": "extracted type or null if not found",
+    "type_bbox": {{"x": 0, "y": 0, "width": 0, "height": 0}} or null,
+    "abv": "extracted abv or null if not found",
+    "abv_bbox": {{"x": 0, "y": 0, "width": 0, "height": 0}} or null,
+    "volume": "extracted volume or null if not found",
+    "volume_bbox": {{"x": 0, "y": 0, "width": 0, "height": 0}} or null
+}}
+
+If a field cannot be found in the image, use null for both value and bbox.
+Estimate bounding box coordinates as accurately as possible based on where you see the text.
+Do not include any explanation, just the JSON object."""
+
+        try:
+            # Read and encode image
+            image_path = Path(image_path)
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            
+            # Determine MIME type
+            suffix = image_path.suffix.lower()
+            mime_type = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }.get(suffix, "image/jpeg")
+            
+            # Create image part for Gemini
+            image_part = {
+                "mime_type": mime_type,
+                "data": image_data
+            }
+            
+            logger.info(f"Sending image to Gemini vision model: {image_path.name}")
+            response = self.vision_model.generate_content([prompt, image_part])
+            response_text = response.text.strip()
+            logger.info(f"Gemini vision response: {response_text}")
+
+            # Remove markdown code blocks if present
+            if response_text.startswith("```"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:-1])
+
+            result = json.loads(response_text)
+            
+            # Extract data
+            extracted = {
+                "brand": result.get("brand"),
+                "type": result.get("type"),
+                "abv": result.get("abv"),
+                "volume": result.get("volume"),
+            }
+            
+            # Extract and validate bounding boxes
+            def validate_bbox(bbox_data):
+                """Validate and convert bounding box data to proper format."""
+                if bbox_data is None:
+                    return None
+                if not isinstance(bbox_data, dict):
+                    return None
+                try:
+                    return {
+                        "x": int(bbox_data.get("x", 0)),
+                        "y": int(bbox_data.get("y", 0)),
+                        "width": int(bbox_data.get("width", 0)),
+                        "height": int(bbox_data.get("height", 0)),
+                    }
+                except (TypeError, ValueError):
+                    return None
+            
+            bboxes = {
+                "brand": validate_bbox(result.get("brand_bbox")),
+                "type": validate_bbox(result.get("type_bbox")),
+                "abv": validate_bbox(result.get("abv_bbox")),
+                "volume": validate_bbox(result.get("volume_bbox")),
+            }
+            
+            logger.info(f"Vision extracted result: {extracted}")
+            logger.info(f"Vision bounding boxes: {bboxes}")
+            return extracted, bboxes
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}, response was: {response_text}")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": f"JSON decode error: {e}",
+            }, empty_bboxes
+        except Exception as e:
+            logger.error(f"Error calling Gemini Vision API: {e}")
+            return {
+                "brand": None,
+                "type": None,
+                "abv": None,
+                "volume": None,
+                "error": str(e),
+            }, empty_bboxes
 
     def parse_label_text(self, ocr_text: str) -> dict:
         """
