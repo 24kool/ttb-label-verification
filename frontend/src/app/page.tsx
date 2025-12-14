@@ -74,10 +74,15 @@ export default function Home() {
       {isLoading && <LoadingOverlay />}
 
       {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">TTB: Alcohol and Tobacco Tax and Trade Bureau</h1>
-          <p className="text-sm text-muted-foreground">
+      <header className="bg-primary text-primary-foreground">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">TTB Label Verification</h1>
+            <p className="text-sm opacity-80">
+              Alcohol and Tobacco Tax and Trade Bureau
+            </p>
+          </div>
+          <p className="text-sm opacity-70">
             by KC Kim | devby.kc@gmail.com | 541-232-8956
           </p>
         </div>
@@ -87,7 +92,7 @@ export default function Home() {
         {/* Input Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-stretch">
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold mb-3">Upload Label Image</h2>
+            <h2 className="text-lg font-semibold mb-3">1. Upload Label Image</h2>
             <div className="flex-1">
               <ImageUpload
                 onImageSelect={setSelectedImage}
@@ -96,7 +101,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold mb-3">Enter Label Details</h2>
+            <h2 className="text-lg font-semibold mb-3">2. Enter Label Details</h2>
             <div className="flex-1">
               <LabelForm
                 formData={formData}

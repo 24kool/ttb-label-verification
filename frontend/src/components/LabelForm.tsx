@@ -54,9 +54,6 @@ export function LabelForm({
 
   return (
     <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Label Information</CardTitle>
-      </CardHeader>
       <CardContent className="space-y-5">
         {FIELD_CONFIG.map((field) => (
           <div key={field.key} className="space-y-2">

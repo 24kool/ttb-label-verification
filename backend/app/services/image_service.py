@@ -25,10 +25,10 @@ class ImageService:
         """Get font for labels (falls back to default if not available)."""
         if self._font is None:
             try:
-                self._font = ImageFont.truetype("DejaVuSans.ttf", 10)
+                self._font = ImageFont.truetype("DejaVuSans.ttf", 30)
             except (OSError, IOError):
                 try:
-                    self._font = ImageFont.truetype("Arial.ttf", 10)
+                    self._font = ImageFont.truetype("Arial.ttf", 30)
                 except (OSError, IOError):
                     self._font = ImageFont.load_default()
         return self._font
