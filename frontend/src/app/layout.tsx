@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TTB Label Verification",
-  description: "Verify alcohol beverage labels using OCR and AI",
+  title: "TTB: Alcohol and Tobacco Tax and Trade Bureau",
+  description: "Verify alcohol beverage labels using AI",
 };
 
 export default function RootLayout({

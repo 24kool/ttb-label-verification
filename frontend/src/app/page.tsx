@@ -76,32 +76,36 @@ export default function Home() {
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">TTB Label Verification</h1>
+          <h1 className="text-2xl font-bold">TTB: Alcohol and Tobacco Tax and Trade Bureau</h1>
           <p className="text-sm text-muted-foreground">
-            Upload a label image and verify the information
+            by KC Kim | devby.kc@gmail.com | 541-232-8956
           </p>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         {/* Input Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-stretch">
+          <div className="flex flex-col">
             <h2 className="text-lg font-semibold mb-3">Upload Label Image</h2>
-            <ImageUpload
-              onImageSelect={setSelectedImage}
-              selectedImage={selectedImage}
-            />
+            <div className="flex-1">
+              <ImageUpload
+                onImageSelect={setSelectedImage}
+                selectedImage={selectedImage}
+              />
+            </div>
           </div>
-          <div>
+          <div className="flex flex-col">
             <h2 className="text-lg font-semibold mb-3">Enter Label Details</h2>
-            <LabelForm
-              formData={formData}
-              onFormChange={setFormData}
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-              disabled={!isFormValid}
-            />
+            <div className="flex-1">
+              <LabelForm
+                formData={formData}
+                onFormChange={setFormData}
+                onSubmit={handleSubmit}
+                isLoading={isLoading}
+                disabled={!isFormValid}
+              />
+            </div>
           </div>
         </div>
 

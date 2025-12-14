@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ interface ImageUploadProps {
 export function ImageUpload({ onImageSelect, selectedImage }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -54,9 +55,25 @@ export function ImageUpload({ onImageSelect, selectedImage }: ImageUploadProps) 
     [handleFile]
   );
 
+  const handleCardClick = useCallback(() => {
+    if (!preview && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, [preview]);
+
+  const handleRemove = useCallback(() => {
+    setPreview(null);
+    onImageSelect(null as unknown as File);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [onImageSelect]);
+
   return (
     <Card
-      className={`relative flex flex-col items-center justify-center min-h-[300px] p-6 border-2 border-dashed transition-colors cursor-pointer ${
+      className={`relative flex flex-col items-center justify-center min-h-[300px] h-full p-6 border-2 border-dashed transition-colors ${
+        !preview ? "cursor-pointer" : ""
+      } ${
         isDragOver
           ? "border-primary bg-primary/5"
           : "border-muted-foreground/25 hover:border-primary/50"
@@ -64,12 +81,14 @@ export function ImageUpload({ onImageSelect, selectedImage }: ImageUploadProps) 
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
+      onClick={handleCardClick}
     >
       <input
+        ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/jpg"
         onChange={handleInputChange}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        className="hidden"
       />
 
       {preview ? (
@@ -117,8 +136,7 @@ export function ImageUpload({ onImageSelect, selectedImage }: ImageUploadProps) 
           className="mt-3"
           onClick={(e) => {
             e.stopPropagation();
-            setPreview(null);
-            onImageSelect(null as unknown as File);
+            handleRemove();
           }}
         >
           Remove Image
@@ -127,4 +145,3 @@ export function ImageUpload({ onImageSelect, selectedImage }: ImageUploadProps) 
     </Card>
   );
 }
-

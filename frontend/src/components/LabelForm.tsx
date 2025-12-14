@@ -53,7 +53,7 @@ export function LabelForm({
   };
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>Label Information</CardTitle>
       </CardHeader>
