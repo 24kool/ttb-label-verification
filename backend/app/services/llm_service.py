@@ -56,17 +56,6 @@ class LLMService:
         Returns:
             Dict with brand, type, abv, volume fields and validation info
         """
-        # Check if API key is configured
-        if not self._api_key or self._api_key == "your_gemini_api_key_here":
-            logger.error("Cannot extract from image: GEMINI_API_KEY not configured")
-            return {
-                "brand": None,
-                "type": None,
-                "abv": None,
-                "volume": None,
-                "is_valid": False,
-                "validation_message": "GEMINI_API_KEY not configured",
-            }
 
         prompt = """You are a label information extractor for alcohol beverage labels.
 
@@ -192,17 +181,6 @@ Do not include any explanation, just the JSON object."""
             - bounding_boxes: Dict with bounding box for each field
         """
         empty_bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
-        
-        # Check if API key is configured
-        if not self._api_key or self._api_key == "your_gemini_api_key_here":
-            logger.error("Cannot extract from image: GEMINI_API_KEY not configured")
-            return {
-                "brand": None,
-                "type": None,
-                "abv": None,
-                "volume": None,
-                "error": "GEMINI_API_KEY not configured",
-            }, empty_bboxes
 
         prompt = f"""You are a label information extractor for alcohol beverage labels.
 Look at this label image and extract the following information WITH their approximate bounding box locations.
@@ -327,79 +305,6 @@ Do not include any explanation, just the JSON object."""
                 "volume": None,
                 "error": str(e),
             }, empty_bboxes
-
-    def parse_label_text(self, ocr_text: str) -> dict:
-        """
-        Parse OCR text to extract structured label information.
-
-        Args:
-            ocr_text: Raw text extracted from label image
-
-        Returns:
-            Dict with brand, type, abv, volume fields
-        """
-        prompt = f"""You are a label information extractor for alcohol beverage labels.
-Extract the following information from the OCR text of a label image.
-
-OCR Text:
-{ocr_text}
-
-Extract these fields:
-1. brand - The brand/distillery name (e.g., "Jack Daniel's", "Old Tom Distillery")
-2. type - The type of alcohol (e.g., "Tennessee Sour Mash Whiskey", "Kentucky Straight Bourbon Whiskey", "Vodka")
-3. abv - Alcohol by volume percentage (e.g., "40%", "45% ABV", "40% Vol")
-4. volume - The bottle volume (e.g., "750mL", "70cl", "1L")
-
-Respond ONLY with a valid JSON object in this exact format:
-{{
-    "brand": "extracted brand or null if not found",
-    "type": "extracted type or null if not found",
-    "abv": "extracted abv or null if not found",
-    "volume": "extracted volume or null if not found"
-}}
-
-If a field cannot be found, use null.
-Do not include any explanation, just the JSON object."""
-
-        try:
-            logger.info(f"Sending OCR text to Gemini: {ocr_text[:100]}...")
-            response = self.model.generate_content(prompt)
-            response_text = response.text.strip()
-            logger.info(f"Gemini response: {response_text}")
-
-            # Remove markdown code blocks if present
-            if response_text.startswith("```"):
-                lines = response_text.split("\n")
-                response_text = "\n".join(lines[1:-1])
-
-            result = json.loads(response_text)
-            parsed = {
-                "brand": result.get("brand"),
-                "type": result.get("type"),
-                "abv": result.get("abv"),
-                "volume": result.get("volume"),
-            }
-            logger.info(f"Parsed result: {parsed}")
-            return parsed
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}, response was: {response_text}")
-            return {
-                "brand": None,
-                "type": None,
-                "abv": None,
-                "volume": None,
-                "error": f"JSON decode error: {e}",
-            }
-        except Exception as e:
-            logger.error(f"Error calling Gemini API: {e}")
-            return {
-                "brand": None,
-                "type": None,
-                "abv": None,
-                "volume": None,
-                "error": str(e),
-            }
 
     def generate_comparison_explanation(
         self,
