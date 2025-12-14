@@ -141,38 +141,73 @@ Verify label images against form data.
   "results": [
     {
       "image_index": 0,
-      "original_filename": "label.jpg",
-      "ocr_raw_text": "(Hybrid mode) OCR: ...",
+      "original_filename": "test_label.jpg",
+      "ocr_raw_text": "JUMP BANDWAGON Original WHISKEY BOTTEK 10686 PRODUCT OF THE USA 4139 001 FUCUCED AND BOTTLED STRAIGHT BOURBON WHISKEY BATCH No FOR BANDWAGON VOLUME CRAFTED BY GintoutasDnda e700ML",
       "extracted_data": {
-        "brand": "Jack Daniel's",
-        "type": "Tennessee Whiskey",
-        "abv": "40%",
-        "volume": "750mL",
-        "is_valid": true,
-        "is_alcohol_label": true,
-        "quality_ok": true
+        "brand": "BANDWAGON",
+        "type": "STRAIGHT BOURBON WHISKEY",
+        "abv": "41.3%",
+        "volume": "700ML",
+        "error": null
       },
       "bounding_boxes": {
-        "brand": {"x": 100, "y": 50, "width": 200, "height": 30},
-        "type": {"x": 100, "y": 90, "width": 300, "height": 25},
-        "abv": {"x": 150, "y": 130, "width": 50, "height": 20},
-        "volume": {"x": 200, "y": 130, "width": 60, "height": 20}
+        "brand": {
+          "x": 99,
+          "y": 62,
+          "width": 768,
+          "height": 383
+        },
+        "type": {
+          "x": 387,
+          "y": 547,
+          "width": 435,
+          "height": 142
+        },
+        "abv": null,
+        "volume": {
+          "x": 228,
+          "y": 728,
+          "width": 122,
+          "height": 48
+        }
       },
       "annotated_image_base64": "data:image/jpeg;base64,..."
     }
   ],
   "comparison": {
-    "is_match": true,
+    "is_match": false,
     "field_results": {
       "brand": {
-        "match": true,
+        "match": false,
         "form_value": "Jack Daniel's",
-        "label_value": "Jack Daniel's",
+        "label_value": "BANDWAGON",
         "normalized_form": "jack daniel's",
-        "normalized_label": "jack daniel's"
+        "normalized_label": "bandwagon"
+      },
+      "type": {
+        "match": false,
+        "form_value": "Tennessee Sour Mash Whiskey",
+        "label_value": "STRAIGHT BOURBON WHISKEY",
+        "normalized_form": "tennessee sour mash whiskey",
+        "normalized_label": "straight bourbon whiskey"
+      },
+      "abv": {
+        "match": false,
+        "form_value": "40%",
+        "label_value": "41.3%",
+        "normalized_form": "40%",
+        "normalized_label": "41.3%"
+      },
+      "volume": {
+        "match": true,
+        "form_value": "70cl",
+        "label_value": "700ML",
+        "normalized_form": "700 mL",
+        "normalized_label": "700 mL"
       }
     },
-    "explanation": "All fields match between the form data and label image."
-  }
+    "explanation": "Discrepancies exist between the form and label data for Brand, Type, and ABV, while Volume data is consistent after normalization. Specifically, the Brand and Type are entirely different, and there is a variance in the ABV percentage. Further investigation is required to determine the correct information and make necessary corrections."
+  },
+  "error": null
 }
 ```
