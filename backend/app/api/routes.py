@@ -134,6 +134,23 @@ async def verify_label(
             )
             temp_files.append(temp_path)
 
+            # Validate image (check if it's an alcohol label with good quality)
+            validation = llm_service.validate_image(str(temp_path))
+            if not validation["is_valid"]:
+                # Clean up temp files before raising error
+                for temp_file in temp_files:
+                    delete_temp_file(temp_file)
+                
+                # Build error message
+                if not validation["is_alcohol_label"]:
+                    error_msg = "This image does not appear to be an alcohol beverage label. Please upload a valid alcohol label image."
+                elif not validation["quality_ok"]:
+                    error_msg = f"Image quality issue: {validation['message']}. Please upload a clearer image."
+                else:
+                    error_msg = validation["message"]
+                
+                raise HTTPException(status_code=400, detail=error_msg)
+
             ocr_text = ""
             ocr_results = []
             bboxes = {"brand": None, "type": None, "abv": None, "volume": None}

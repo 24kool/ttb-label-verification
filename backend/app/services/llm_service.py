@@ -147,6 +147,115 @@ Do not include any explanation, just the JSON object."""
                 "error": str(e),
             }
 
+    def validate_image(self, image_path: str) -> dict:
+        """
+        Validate if the image is a valid alcohol beverage label with good quality.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dict with validation results:
+            - is_valid: bool - whether the image is a valid alcohol label
+            - is_alcohol_label: bool - whether this appears to be an alcohol label
+            - quality_ok: bool - whether image quality is sufficient
+            - message: str - explanation of any issues
+        """
+        # Check if API key is configured
+        if not self._api_key or self._api_key == "your_gemini_api_key_here":
+            logger.error("Cannot validate image: GEMINI_API_KEY not configured")
+            return {
+                "is_valid": False,
+                "is_alcohol_label": False,
+                "quality_ok": False,
+                "message": "GEMINI_API_KEY not configured",
+            }
+
+        prompt = """Analyze this image and determine:
+
+1. Is this an alcohol beverage label (beer, wine, spirits, etc.)?
+2. Is the image quality sufficient to read the text on the label?
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+    "is_alcohol_label": true or false,
+    "quality_ok": true or false,
+    "message": "Brief explanation if there are any issues, or 'Valid alcohol label' if OK"
+}
+
+Consider the image as NOT an alcohol label if:
+- It's a completely different product (food, cosmetics, etc.)
+- It's not a product label at all (random photo, document, etc.)
+
+Consider the quality as NOT OK if:
+- The image is too blurry to read text
+- The image is too dark or overexposed
+- The label text is not visible or cut off
+- The image resolution is too low
+
+Only return the JSON object, no other text."""
+
+        try:
+            # Read and encode image
+            image_path_obj = Path(image_path)
+            with open(image_path_obj, "rb") as f:
+                image_data = f.read()
+            
+            # Determine MIME type
+            suffix = image_path_obj.suffix.lower()
+            mime_type = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }.get(suffix, "image/jpeg")
+            
+            # Create image part for Gemini
+            image_part = {
+                "mime_type": mime_type,
+                "data": image_data
+            }
+            
+            logger.info(f"Validating image with Gemini: {image_path_obj.name}")
+            response = self.vision_model.generate_content([prompt, image_part])
+            response_text = response.text.strip()
+            logger.info(f"Image validation response: {response_text}")
+
+            # Remove markdown code blocks if present
+            if response_text.startswith("```"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:-1])
+
+            result = json.loads(response_text)
+            is_alcohol_label = result.get("is_alcohol_label", False)
+            quality_ok = result.get("quality_ok", False)
+            message = result.get("message", "")
+            
+            return {
+                "is_valid": is_alcohol_label and quality_ok,
+                "is_alcohol_label": is_alcohol_label,
+                "quality_ok": quality_ok,
+                "message": message,
+            }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error in validation: {e}")
+            return {
+                "is_valid": True,  # Default to valid on parse error
+                "is_alcohol_label": True,
+                "quality_ok": True,
+                "message": "Validation response parse error, proceeding anyway",
+            }
+        except Exception as e:
+            logger.error(f"Error validating image: {e}")
+            return {
+                "is_valid": True,  # Default to valid on error
+                "is_alcohol_label": True,
+                "quality_ok": True,
+                "message": f"Validation error: {e}, proceeding anyway",
+            }
+
     def extract_from_image(self, image_path: str, image_width: int = 0, image_height: int = 0) -> tuple[dict, dict]:
         """
         Extract label information directly from image using vision model.
