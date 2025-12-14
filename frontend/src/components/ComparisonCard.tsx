@@ -4,7 +4,7 @@ import { FieldComparison } from "@/types";
 
 interface ComparisonCardProps {
   field: string;
-  comparison: FieldComparison;
+  comparison?: FieldComparison;
 }
 
 export function ComparisonCard({ field, comparison }: ComparisonCardProps) {
@@ -76,15 +76,15 @@ export function ComparisonCard({ field, comparison }: ComparisonCardProps) {
 
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div>
-          <span className="text-muted-foreground text-xs">Form Value:</span>
-          <p className="font-mono bg-background px-2 py-1 rounded mt-1 truncate">
-            {comparison.form_value || "-"}
-          </p>
-        </div>
-        <div>
           <span className="text-muted-foreground text-xs">Label Value:</span>
           <p className="font-mono bg-background px-2 py-1 rounded mt-1 truncate">
             {comparison.label_value || "-"}
+          </p>
+        </div>
+        <div>
+          <span className="text-muted-foreground text-xs">Form Value:</span>
+          <p className="font-mono bg-background px-2 py-1 rounded mt-1 truncate">
+            {comparison.form_value || "-"}
           </p>
         </div>
       </div>

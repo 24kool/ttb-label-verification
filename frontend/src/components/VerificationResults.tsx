@@ -15,21 +15,26 @@ export function VerificationResults({ response }: VerificationResultsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header with overall status */}
+      {/* Header with overall status and explanation */}
       <div
-        className={`p-4 rounded-lg text-center ${
+        className={`p-4 rounded-lg ${
           is_match
             ? "bg-green-500/10 border border-green-500/30"
             : "bg-red-500/10 border border-red-500/30"
         }`}
       >
-        <span
-          className={`text-lg font-semibold ${
-            is_match ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {is_match ? "All Fields Match" : "Differences Found"}
-        </span>
+        <div className="text-center mb-3">
+          <span
+            className={`text-lg font-semibold ${
+              is_match ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {is_match ? "All Fields Match" : "Differences Found"}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap text-center">
+          {comparison.explanation}
+        </p>
       </div>
 
       {/* Main content */}
@@ -67,18 +72,6 @@ export function VerificationResults({ response }: VerificationResultsProps) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Explanation */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Explanation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {comparison.explanation}
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

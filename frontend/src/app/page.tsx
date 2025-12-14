@@ -6,6 +6,12 @@ import { LabelForm } from "@/components/LabelForm";
 import { VerificationResults } from "@/components/VerificationResults";
 import { verifyLabel } from "@/lib/api";
 import { FormData, LabelVerificationResponse } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const INITIAL_FORM_DATA: FormData = {
   brand: "",
@@ -14,12 +20,28 @@ const INITIAL_FORM_DATA: FormData = {
   volume: "",
 };
 
+function LoadingOverlay() {
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-full border-4 border-muted"></div>
+          <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin absolute top-0 left-0"></div>
+        </div>
+        <p className="text-lg font-medium">Verifying label...</p>
+        <p className="text-sm text-muted-foreground">This may take a few seconds</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<LabelVerificationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSubmit = async () => {
     if (!selectedImage) return;
@@ -31,6 +53,7 @@ export default function Home() {
     try {
       const response = await verifyLabel([selectedImage], formData);
       setResult(response);
+      setIsModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -47,6 +70,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Loading Overlay */}
+      {isLoading && <LoadingOverlay />}
+
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
@@ -86,15 +112,17 @@ export default function Home() {
             <p className="text-sm text-red-500">{error}</p>
           </div>
         )}
-
-        {/* Results Section */}
-        {result && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Verification Results</h2>
-            <VerificationResults response={result} />
-          </div>
-        )}
       </main>
+
+      {/* Results Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-6xl w-[90vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Verification Results</DialogTitle>
+          </DialogHeader>
+          {result && <VerificationResults response={result} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
