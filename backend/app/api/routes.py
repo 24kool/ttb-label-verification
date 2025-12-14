@@ -3,7 +3,10 @@
 import os
 import uuid
 import tempfile
+import logging
 from pathlib import Path
+
+logger = logging.getLogger("ttb.routes")
 from PIL import Image
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from app.models.schemas import (
@@ -109,6 +112,11 @@ async def verify_label(
         "volume": volume,
     }
 
+    logger.info("=" * 50)
+    logger.info("New verification request")
+    logger.info(f"Form data: {form_data}")
+    logger.info(f"Number of images: {len(images)}")
+
     results: list[ImageResult] = []
     aggregated_extracted_data = {
         "brand": None,
@@ -134,9 +142,11 @@ async def verify_label(
 
             # Step 1: Run OCR to get text positions for bounding boxes
             ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+            logger.info(f"OCR text: {ocr_text[:300]}..." if len(ocr_text) > 300 else f"OCR text: {ocr_text}")
             
             # Step 2: Use Vision model for extraction (includes validation)
             extracted = llm_service.extract_from_image_simple(str(temp_path))
+            logger.info(f"Vision extracted: {extracted}")
             
             # Check validation from extraction result
             if not extracted.get("is_valid", True):
@@ -156,6 +166,7 @@ async def verify_label(
             
             # Step 3: Use OCR results to find bounding boxes for extracted values
             bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
+            logger.info(f"Bounding boxes: {bboxes}")
 
             # Update aggregated data (use first non-null value found)
             for field in ["brand", "type", "abv", "volume"]:
@@ -225,6 +236,10 @@ async def verify_label(
             explanation=explanation,
         )
 
+        logger.info(f"Comparison: is_match={all_match}")
+        logger.info(f"Field results: {field_results_dict}")
+        logger.info("=" * 50)
+
         return LabelVerificationResponse(
             success=True,
             results=results,
@@ -232,6 +247,7 @@ async def verify_label(
         )
 
     except Exception as e:
+        logger.error(f"Error processing images: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Error processing images: {str(e)}"
