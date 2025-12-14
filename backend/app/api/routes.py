@@ -134,23 +134,6 @@ async def verify_label(
             )
             temp_files.append(temp_path)
 
-            # Validate image (check if it's an alcohol label with good quality)
-            validation = llm_service.validate_image(str(temp_path))
-            if not validation["is_valid"]:
-                # Clean up temp files before raising error
-                for temp_file in temp_files:
-                    delete_temp_file(temp_file)
-                
-                # Build error message
-                if not validation["is_alcohol_label"]:
-                    error_msg = "This image does not appear to be an alcohol beverage label. Please upload a valid alcohol label image."
-                elif not validation["quality_ok"]:
-                    error_msg = f"Image quality issue: {validation['message']}. Please upload a clearer image."
-                else:
-                    error_msg = validation["message"]
-                
-                raise HTTPException(status_code=400, detail=error_msg)
-
             ocr_text = ""
             ocr_results = []
             bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
@@ -160,8 +143,24 @@ async def verify_label(
                 # Step 1: Run OCR to get text positions
                 ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
                 
-                # Step 2: Use Vision model for more accurate text extraction
+                # Step 2: Use Vision model for extraction (includes validation)
                 extracted = llm_service.extract_from_image_simple(str(temp_path))
+                
+                # Check validation from extraction result
+                if not extracted.get("is_valid", True):
+                    # Clean up temp files before raising error
+                    for temp_file in temp_files:
+                        delete_temp_file(temp_file)
+                    
+                    # Build error message
+                    if not extracted.get("is_alcohol_label", True):
+                        error_msg = "This image does not appear to be an alcohol beverage label. Please upload a valid alcohol label image."
+                    elif not extracted.get("quality_ok", True):
+                        error_msg = f"Image quality issue: {extracted.get('validation_message', 'Please upload a clearer image.')}"
+                    else:
+                        error_msg = extracted.get("validation_message", "Invalid image")
+                    
+                    raise HTTPException(status_code=400, detail=error_msg)
                 
                 # Step 3: Use OCR results to find bounding boxes for extracted values
                 bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
