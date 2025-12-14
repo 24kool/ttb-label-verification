@@ -86,20 +86,18 @@ async def verify_label(
     type: str = Form(..., description="Product type from form"),
     abv: str = Form(..., description="ABV from form"),
     volume: str = Form(..., description="Volume from form"),
-    use_vision: bool = Form(default=False, description="Use vision model instead of OCR"),
 ) -> LabelVerificationResponse:
     """
     Verify label images against form data.
 
     This endpoint:
     1. Saves uploaded images to temporary files
-    2. Extracts info using either:
-       - OCR + LLM (default): PaddleOCR extracts text, then Gemini parses it
-       - Vision mode (use_vision=true): Gemini vision model reads image directly
-    3. Normalizes values for comparison (handles unit conversions)
-    4. Compares form data with extracted label data
-    5. Returns annotated images with bounding boxes and comparison results
-    6. Deletes temporary files after processing
+    2. Uses Gemini Vision to extract label info and validate image
+    3. Uses OCR for bounding box detection
+    4. Normalizes values for comparison (handles unit conversions)
+    5. Compares form data with extracted label data
+    6. Returns annotated images with bounding boxes and comparison results
+    7. Deletes temporary files after processing
     """
     if not images:
         raise HTTPException(status_code=400, detail="At least one image is required")
@@ -134,44 +132,30 @@ async def verify_label(
             )
             temp_files.append(temp_path)
 
-            ocr_text = ""
-            ocr_results = []
-            bboxes = {"brand": None, "type": None, "abv": None, "volume": None}
-
-            if use_vision:
-                # Hybrid mode: Vision for extraction + OCR for bounding boxes
-                # Step 1: Run OCR to get text positions
-                ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+            # Step 1: Run OCR to get text positions for bounding boxes
+            ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
+            
+            # Step 2: Use Vision model for extraction (includes validation)
+            extracted = llm_service.extract_from_image_simple(str(temp_path))
+            
+            # Check validation from extraction result
+            if not extracted.get("is_valid", True):
+                # Clean up temp files before raising error
+                for temp_file in temp_files:
+                    delete_temp_file(temp_file)
                 
-                # Step 2: Use Vision model for extraction (includes validation)
-                extracted = llm_service.extract_from_image_simple(str(temp_path))
+                # Build error message
+                if not extracted.get("is_alcohol_label", True):
+                    error_msg = "This image does not appear to be an alcohol beverage label. Please upload a valid alcohol label image."
+                elif not extracted.get("quality_ok", True):
+                    error_msg = f"Image quality issue: {extracted.get('validation_message', 'Please upload a clearer image.')}"
+                else:
+                    error_msg = extracted.get("validation_message", "Invalid image")
                 
-                # Check validation from extraction result
-                if not extracted.get("is_valid", True):
-                    # Clean up temp files before raising error
-                    for temp_file in temp_files:
-                        delete_temp_file(temp_file)
-                    
-                    # Build error message
-                    if not extracted.get("is_alcohol_label", True):
-                        error_msg = "This image does not appear to be an alcohol beverage label. Please upload a valid alcohol label image."
-                    elif not extracted.get("quality_ok", True):
-                        error_msg = f"Image quality issue: {extracted.get('validation_message', 'Please upload a clearer image.')}"
-                    else:
-                        error_msg = extracted.get("validation_message", "Invalid image")
-                    
-                    raise HTTPException(status_code=400, detail=error_msg)
-                
-                # Step 3: Use OCR results to find bounding boxes for extracted values
-                bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
-                
-                ocr_text = f"(Hybrid mode) OCR: {ocr_text}"
-            else:
-                # OCR mode: Extract text with OCR, then parse with LLM
-                ocr_text, ocr_results = ocr_service.extract_text_from_path(str(temp_path))
-                extracted = llm_service.parse_label_text(ocr_text)
-                # Find bounding boxes for extracted fields
-                bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
+                raise HTTPException(status_code=400, detail=error_msg)
+            
+            # Step 3: Use OCR results to find bounding boxes for extracted values
+            bboxes = ocr_service.find_field_bboxes(ocr_results, extracted)
 
             # Update aggregated data (use first non-null value found)
             for field in ["brand", "type", "abv", "volume"]:

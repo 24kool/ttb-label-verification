@@ -125,35 +125,21 @@ class OCRService:
             if result["text"].lower().strip() == search_lower:
                 return result["bbox"]
 
-        # Try partial match (search text contains or is contained by result)
+        # Try partial match - but require significant overlap
         for result in ocr_results:
             result_lower = result["text"].lower().strip()
-            if search_lower in result_lower or result_lower in search_lower:
+            # OCR text must cover at least 35% of search text (or vice versa)
+            if result_lower in search_lower and len(result_lower) >= len(search_lower) * 0.35:
+                return result["bbox"]
+            if search_lower in result_lower and len(search_lower) >= len(result_lower) * 0.35:
                 return result["bbox"]
 
-        # Try word-by-word matching for multi-word text
-        search_words = search_lower.split()
-        if len(search_words) > 1:
-            # Find first word
-            for result in ocr_results:
-                if search_words[0] in result["text"].lower():
-                    return result["bbox"]
-
+        # No confident match - skip annotation
         return None
 
     def find_field_bboxes(
         self, ocr_results: list[dict], extracted_data: dict
     ) -> dict:
-        """
-        Find bounding boxes for all extracted fields.
-
-        Args:
-            ocr_results: OCR results with bounding boxes
-            extracted_data: Dict with brand, type, abv, volume values
-
-        Returns:
-            Dict with bounding boxes for each field
-        """
         bboxes = {}
 
         for field in ["brand", "type", "abv", "volume"]:
