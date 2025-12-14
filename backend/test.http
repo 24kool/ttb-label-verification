@@ -1,159 +1,15 @@
 ### TTB Label Verification API Tests
-### Use with VS Code REST Client extension
 
 @baseUrl = http://127.0.0.1:8000
-
-
-### ===========================================
-### Health Check & Info Endpoints
-### ===========================================
 
 ### Root endpoint - API info
 GET {{baseUrl}}/
 
-###
-
 ### Health check
 GET {{baseUrl}}/api/health
 
-###
-
-
-### ===========================================
-### Label Verification Endpoint
-### ===========================================
-
-### Scenario A: All fields match
-# Form Values:
-#   brand  = Jack Daniel's
-#   type   = Tennessee Sour Mash Whiskey
-#   abv    = 40%
-#   volume = 70cl
-POST {{baseUrl}}/api/verify-label
-Content-Type: multipart/form-data; boundary=FormBoundary
-
---FormBoundary
-Content-Disposition: form-data; name="brand"
-
-Jack Daniel's
---FormBoundary
-Content-Disposition: form-data; name="type"
-
-Tennessee Sour Mash Whiskey
---FormBoundary
-Content-Disposition: form-data; name="abv"
-
-40%
---FormBoundary
-Content-Disposition: form-data; name="volume"
-
-70cl
---FormBoundary
-Content-Disposition: form-data; name="images"; filename="test_label.jpg"
-Content-Type: image/jpeg
-
-< ../data/test_label.jpg
---FormBoundary--
-
-###
-
-### Scenario B: Brand name differs
-# Form: "Old Tom Distillery" vs Label: "Jack Daniel's"
-POST {{baseUrl}}/api/verify-label
-Content-Type: multipart/form-data; boundary=FormBoundary
-
---FormBoundary
-Content-Disposition: form-data; name="brand"
-
-Old Tom Distillery
---FormBoundary
-Content-Disposition: form-data; name="type"
-
-Tennessee Sour Mash Whiskey
---FormBoundary
-Content-Disposition: form-data; name="abv"
-
-40%
---FormBoundary
-Content-Disposition: form-data; name="volume"
-
-70cl
---FormBoundary
-Content-Disposition: form-data; name="images"; filename="test_label.jpg"
-Content-Type: image/jpeg
-
-< ../data/test_label.jpg
---FormBoundary--
-
-###
-
-### Scenario C: ABV differs
-# Form: "45%" vs Label: "40%"
-POST {{baseUrl}}/api/verify-label
-Content-Type: multipart/form-data; boundary=FormBoundary
-
---FormBoundary
-Content-Disposition: form-data; name="brand"
-
-Jack Daniel's
---FormBoundary
-Content-Disposition: form-data; name="type"
-
-Tennessee Sour Mash Whiskey
---FormBoundary
-Content-Disposition: form-data; name="abv"
-
-45%
---FormBoundary
-Content-Disposition: form-data; name="volume"
-
-70cl
---FormBoundary
-Content-Disposition: form-data; name="images"; filename="test_label.jpg"
-Content-Type: image/jpeg
-
-< ../data/test_label.jpg
---FormBoundary--
-
-###
-
-### Scenario D: Volume unit conversion (cc vs mL)
-# Form: "700cc" should match Label: "70cl" after normalization
-POST {{baseUrl}}/api/verify-label
-Content-Type: multipart/form-data; boundary=FormBoundary
-
---FormBoundary
-Content-Disposition: form-data; name="brand"
-
-Jack Daniel's
---FormBoundary
-Content-Disposition: form-data; name="type"
-
-Tennessee Sour Mash Whiskey
---FormBoundary
-Content-Disposition: form-data; name="abv"
-
-40%
---FormBoundary
-Content-Disposition: form-data; name="volume"
-
-700cc
---FormBoundary
-Content-Disposition: form-data; name="images"; filename="test_label.jpg"
-Content-Type: image/jpeg
-
-< ../data/test_label.jpg
---FormBoundary--
-
-###
-
-
-### ===========================================
-### Vision Mode (Skip OCR, use Gemini Vision directly)
-### ===========================================
 
 ### Vision Mode Test: Extract info directly from image
-# use_vision = true -> Skip OCR, use Gemini Vision model
 POST {{baseUrl}}/api/verify-label
 Content-Type: multipart/form-data; boundary=FormBoundary
 
